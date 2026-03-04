@@ -1,0 +1,208 @@
+[
+  {
+    "id": "b-cheese",
+    "name": "Cheeseburger",
+    "barcode": "4770000001001",
+    "priceCents": 259,
+    "type": "BURGER",
+    "image": "/products/cheeseburger.png"
+  },
+  {
+    "id": "b-double-cheese",
+    "name": "Double Cheeseburger",
+    "barcode": "4770000001002",
+    "priceCents": 399,
+    "type": "BURGER",
+    "image": "/products/double-cheeseburger.png"
+  },
+  {
+    "id": "b-chicken",
+    "name": "Chicken Burger",
+    "barcode": "4770000001003",
+    "priceCents": 349,
+    "type": "BURGER",
+    "image": "/products/chicken-burger.png"
+  },
+  {
+    "id": "b-bacon",
+    "name": "Bacon Burger",
+    "barcode": "4770000001004",
+    "priceCents": 429,
+    "type": "BURGER",
+    "image": "/products/bacon-burger.png"
+  },
+  {
+    "id": "b-veggie",
+    "name": "Veggie Burger",
+    "barcode": "4770000001005",
+    "priceCents": 379,
+    "type": "BURGER",
+    "image": "/products/veggie-burger.png"
+  },
+
+  {
+    "id": "f-small",
+    "name": "Small Fries",
+    "barcode": "4770000002001",
+    "priceCents": 199,
+    "type": "FRIES",
+    "image": "/products/fries-small.png"
+  },
+  {
+    "id": "f-medium",
+    "name": "Medium Fries",
+    "barcode": "4770000002002",
+    "priceCents": 249,
+    "type": "FRIES",
+    "image": "/products/fries-medium.png"
+  },
+  {
+    "id": "f-large",
+    "name": "Large Fries",
+    "barcode": "4770000002003",
+    "priceCents": 299,
+    "type": "FRIES",
+    "image": "/products/fries-large.png"
+  },
+
+  {
+    "id": "d-cola-s",
+    "name": "Cola Small",
+    "barcode": "4770000003001",
+    "priceCents": 179,
+    "type": "DRINK",
+    "image": "/products/cola.png"
+  },
+  {
+    "id": "d-cola-m",
+    "name": "Cola Medium",
+    "barcode": "4770000003002",
+    "priceCents": 219,
+    "type": "DRINK",
+    "image": "/products/cola.png"
+  },
+  {
+    "id": "d-cola-l",
+    "name": "Cola Large",
+    "barcode": "4770000003003",
+    "priceCents": 259,
+    "type": "DRINK",
+    "image": "/products/cola.png"
+  },
+  {
+    "id": "d-water",
+    "name": "Water 0.5L",
+    "barcode": "4770000003004",
+    "priceCents": 149,
+    "type": "DRINK",
+    "image": "/products/water.png"
+  },
+  {
+    "id": "d-juice",
+    "name": "Orange Juice",
+    "barcode": "4770000003005",
+    "priceCents": 229,
+    "type": "DRINK",
+    "image": "/products/juice.png"
+  },
+
+  {
+    "id": "c-cheese-set",
+    "name": "Cheeseburger Set (M)",
+    "barcode": "4770000004001",
+    "priceCents": 499,
+    "type": "COMBO",
+    "image": "/products/combo-cheese.png"
+  },
+  {
+    "id": "c-double-set",
+    "name": "Double Burger Set (L)",
+    "barcode": "4770000004002",
+    "priceCents": 659,
+    "type": "COMBO",
+    "image": "/products/combo-double.png"
+  },
+  {
+    "id": "c-chicken-set",
+    "name": "Chicken Burger Set (M)",
+    "barcode": "4770000004003",
+    "priceCents": 569,
+    "type": "COMBO",
+    "image": "/products/combo-chicken.png"
+  },
+
+  {
+    "id": "n-6",
+    "name": "Chicken Nuggets (6 pcs)",
+    "barcode": "4770000005001",
+    "priceCents": 299,
+    "type": "SNACK",
+    "image": "/products/nuggets.png"
+  },
+  {
+    "id": "n-9",
+    "name": "Chicken Nuggets (9 pcs)",
+    "barcode": "4770000005002",
+    "priceCents": 399,
+    "type": "SNACK",
+    "image": "/products/nuggets.png"
+  },
+  {
+    "id": "onion-rings",
+    "name": "Onion Rings",
+    "barcode": "4770000005003",
+    "priceCents": 279,
+    "type": "SNACK",
+    "image": "/products/onion-rings.png"
+  },
+
+  {
+    "id": "s-ketchup",
+    "name": "Ketchup",
+    "barcode": "4770000006001",
+    "priceCents": 39,
+    "type": "SAUCE",
+    "image": "/products/ketchup.png"
+  },
+  {
+    "id": "s-garlic",
+    "name": "Garlic Sauce",
+    "barcode": "4770000006002",
+    "priceCents": 49,
+    "type": "SAUCE",
+    "image": "/products/garlic.png"
+  },
+  {
+    "id": "s-bbq",
+    "name": "BBQ Sauce",
+    "barcode": "4770000006003",
+    "priceCents": 49,
+    "type": "SAUCE",
+    "image": "/products/bbq.png"
+  },
+
+  {
+    "id": "dess-icecream",
+    "name": "Vanilla Ice Cream",
+    "barcode": "4770000007001",
+    "priceCents": 199,
+    "type": "DESSERT",
+    "image": "/products/icecream.png"
+  },
+  {
+    "id": "dess-applepie",
+    "name": "Apple Pie",
+    "barcode": "4770000007002",
+    "priceCents": 229,
+    "type": "DESSERT",
+    "image": "/products/applepie.png"
+  },
+  {
+    "id": "dess-shake",
+    "name": "Chocolate Milkshake",
+    "barcode": "4770000007003",
+    "priceCents": 349,
+    "type": "DESSERT",
+    "image": "/products/shake.png"
+  }
+]
