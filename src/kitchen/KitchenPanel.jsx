@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useKitchenContext } from "../context/KitchenContext";
 import { runAdvancedGA } from "../kitchen/advancedAI";
 import { runGA } from "../kitchen/ga";
@@ -83,17 +83,25 @@ export default function KitchenPanel() {
   const [advRes, setAdvRes] = useState(null);
   const [advInfo, setAdvInfo] = useState(null);
 
-  const baseConfig = useMemo(
-    () => ({
-      grills: 1,
-      fryers: 2,
-      drinks: 1,
-      icecreams: 1,
-      packs: 1,
-      cooks: 1,
-    }),
-    [],
-  );
+  const [baseConfig, setBaseConfig] = useState({
+    grills: 1,
+    fryers: 2,
+    drinks: 1,
+    icecreams: 1,
+    packs: 1,
+    cooks: 1,
+  });
+
+  function updateConfig(key, value) {
+    const num = Number(value);
+
+    setBaseConfig((prev) => ({
+      ...prev,
+      [key]: Number.isFinite(num) && num >= 0 ? num : 0,
+    }));
+
+    resetResults();
+  }
 
   function resetResults() {
     setFifoRes(null);
@@ -142,11 +150,6 @@ export default function KitchenPanel() {
 
     const simOptions = {
       config: baseConfig,
-      weights: {
-        wShort: 1.0,
-        wFinishOrder: 1.3,
-        wCritical: 0.9,
-      },
     };
 
     const { bestSim, info } = runAdvancedGA(orders, params, simOptions);
@@ -184,10 +187,76 @@ export default function KitchenPanel() {
       <div className="font-bold text-xl mb-2">Kitchen</div>
 
       <div className="text-sm text-black/60 mb-2">Orders: {orders.length}</div>
-      <div className="text-xs text-black/50 mb-4">
-        Base config: cooks {baseConfig.cooks}, grills {baseConfig.grills},
-        fryers {baseConfig.fryers}, drinks {baseConfig.drinks}, icecreams{" "}
-        {baseConfig.icecreams}, packs {baseConfig.packs}
+      <div className="mb-4 p-4 rounded-xl bg-black/5">
+        <div className="font-semibold mb-3">Base config</div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <label className="text-sm">
+            <div className="text-black/60 mb-1">Cooks</div>
+            <input
+              type="number"
+              min="0"
+              value={baseConfig.cooks}
+              onChange={(e) => updateConfig("cooks", e.target.value)}
+              className="w-full rounded-lg border border-black/15 px-3 py-2"
+            />
+          </label>
+
+          <label className="text-sm">
+            <div className="text-black/60 mb-1">Grills</div>
+            <input
+              type="number"
+              min="0"
+              value={baseConfig.grills}
+              onChange={(e) => updateConfig("grills", e.target.value)}
+              className="w-full rounded-lg border border-black/15 px-3 py-2"
+            />
+          </label>
+
+          <label className="text-sm">
+            <div className="text-black/60 mb-1">Fryers</div>
+            <input
+              type="number"
+              min="0"
+              value={baseConfig.fryers}
+              onChange={(e) => updateConfig("fryers", e.target.value)}
+              className="w-full rounded-lg border border-black/15 px-3 py-2"
+            />
+          </label>
+
+          <label className="text-sm">
+            <div className="text-black/60 mb-1">Drinks</div>
+            <input
+              type="number"
+              min="0"
+              value={baseConfig.drinks}
+              onChange={(e) => updateConfig("drinks", e.target.value)}
+              className="w-full rounded-lg border border-black/15 px-3 py-2"
+            />
+          </label>
+
+          <label className="text-sm">
+            <div className="text-black/60 mb-1">Icecreams</div>
+            <input
+              type="number"
+              min="0"
+              value={baseConfig.icecreams}
+              onChange={(e) => updateConfig("icecreams", e.target.value)}
+              className="w-full rounded-lg border border-black/15 px-3 py-2"
+            />
+          </label>
+
+          <label className="text-sm">
+            <div className="text-black/60 mb-1">Packs</div>
+            <input
+              type="number"
+              min="0"
+              value={baseConfig.packs}
+              onChange={(e) => updateConfig("packs", e.target.value)}
+              className="w-full rounded-lg border border-black/15 px-3 py-2"
+            />
+          </label>
+        </div>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-6">
