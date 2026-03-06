@@ -38,7 +38,7 @@ export function runGA(orders, gaOptions = {}, simOptions = {}) {
 
   // ---- helpers ----
   function score(sequence) {
-    const { metrics } = simulate(sequence, simOptions); // ✅ config ateina čia
+    const { metrics } = simulate(sequence, simOptions);
     const value =
       objective === "makespan" ? metrics.makespan : metrics.avgCompletion;
     return { metrics, value };

@@ -1,21 +1,88 @@
 import { useMemo, useState } from "react";
-import { useKitchenContext } from "../context/kitchenContext";
-import { suggestResources } from "./capacityPlanner";
-import { runGA } from "./ga";
-import { generateRandomOrders } from "./randomOrders";
-import { simulate } from "./simulate";
+import { useKitchenContext } from "../context/KitchenContext";
+import { runAdvancedGA } from "../kitchen/advancedAI";
+import { runGA } from "../kitchen/ga";
+import KitchenTimeline from "../kitchen/KitchenTimeline";
+import { generateRandomOrders } from "../kitchen/randomOrders";
+import { simulate } from "../kitchen/simulate";
+
+// ---------------------
+// helpers for rendering items nicely
+// ---------------------
+function getItemLabel(it) {
+  console.log("getItemLabel", { it }); // DEBUG
+  return (
+    it?.name ??
+    it?.title ??
+    it?.label ??
+    it?.productName ??
+    it?.sku ??
+    it?.productId ??
+    "Item"
+  );
+}
+
+function getItemQty(it) {
+  const q =
+    it?.qty ?? it?.quantity ?? it?.count ?? it?.amount ?? it?.units ?? 1;
+  const n = Number(q);
+  return Number.isFinite(n) ? n : 1;
+}
+
+function getMaybeStations(it) {
+  // supports: station, stations[], ops[], steps[]
+  if (it?.station) return [String(it.station)];
+  if (Array.isArray(it?.stations)) return it.stations.map(String);
+  if (Array.isArray(it?.ops)) {
+    return it.ops
+      .map((op) => op?.station ?? op?.resource ?? op?.type)
+      .filter(Boolean)
+      .map(String);
+  }
+  if (Array.isArray(it?.steps)) {
+    return it.steps
+      .map((s) => s?.station ?? s?.resource ?? s?.type)
+      .filter(Boolean)
+      .map(String);
+  }
+  return [];
+}
+
+function getMaybeDurations(it) {
+  // supports: durationSec, timeSec, prepSec, ops[].dur
+  const d =
+    it?.durationSec ??
+    it?.timeSec ??
+    it?.prepSec ??
+    it?.seconds ??
+    it?.sec ??
+    null;
+
+  const out = [];
+  if (d != null && Number.isFinite(Number(d))) out.push(Number(d));
+
+  const fromOps = (arr) =>
+    arr
+      .map((x) => x?.durationSec ?? x?.durSec ?? x?.sec ?? x?.seconds)
+      .filter((v) => v != null && Number.isFinite(Number(v)))
+      .map(Number);
+
+  if (Array.isArray(it?.ops)) out.push(...fromOps(it.ops));
+  if (Array.isArray(it?.steps)) out.push(...fromOps(it.steps));
+
+  return out;
+}
 
 export default function KitchenPanel() {
   const { orders, addOrders, clearOrders } = useKitchenContext();
 
-  const [fifo, setFifo] = useState(null);
-  const [ai, setAi] = useState(null);
-  const [aiInfo, setAiInfo] = useState(null);
+  const [fifoRes, setFifoRes] = useState(null);
+  const [gaRes, setGaRes] = useState(null);
+  const [gaInfo, setGaInfo] = useState(null);
 
-  const [targetPct, setTargetPct] = useState(50);
-  const [suggestion, setSuggestion] = useState(null);
+  const [advRes, setAdvRes] = useState(null);
+  const [advInfo, setAdvInfo] = useState(null);
 
-  // jei vėliau norėsi "Apply suggested config", čia laikysim aktyvią konfigūraciją
   const baseConfig = useMemo(
     () => ({
       grills: 1,
@@ -28,13 +95,12 @@ export default function KitchenPanel() {
     [],
   );
 
-  const hasOrders = orders.length > 0;
-
   function resetResults() {
-    setFifo(null);
-    setAi(null);
-    setAiInfo(null);
-    setSuggestion(null);
+    setFifoRes(null);
+    setGaRes(null);
+    setGaInfo(null);
+    setAdvRes(null);
+    setAdvInfo(null);
   }
 
   function handleGenerate() {
@@ -44,11 +110,11 @@ export default function KitchenPanel() {
 
   function handleRunFifo() {
     const res = simulate(orders, { config: baseConfig });
-    setFifo(res.metrics);
+    setFifoRes(res);
   }
 
-  function handleRunAI() {
-    const gaParams = {
+  function handleRunGA() {
+    const params = {
       populationSize: 40,
       generations: 60,
       eliteCount: 8,
@@ -57,47 +123,36 @@ export default function KitchenPanel() {
       seed: 123,
     };
 
-    const simOptions = { config: baseConfig };
+    const { bestSequence } = runGA(orders, params, { config: baseConfig });
+    const sim = simulate(bestSequence, { config: baseConfig });
 
-    const { bestMetrics } = runGA(orders, gaParams, simOptions);
-
-    setAi(bestMetrics);
-    setAiInfo({
-      populationSize: gaParams.populationSize,
-      generations: gaParams.generations,
-      eliteCount: gaParams.eliteCount,
-      mutationRate: gaParams.mutationRate,
-      objective: gaParams.objective,
-      seed: gaParams.seed,
-    });
+    setGaRes(sim);
+    setGaInfo(params);
   }
 
-  function handleSuggest() {
-    console.log(
-      "SUGGEST input orderIds:",
-      orders.map((o) => o.orderId),
-    );
-    const result = suggestResources(orders, Number(targetPct), {
-      baseConfig,
-      ranges: {
-        grills: [1, 2],
-        fryers: [2, 4],
-        drinks: [1, 2],
-        icecreams: [1, 2],
-        packs: [1, 3],
-        cooks: [1, 4],
-      },
-      ga: {
-        populationSize: 40,
-        generations: 60,
-        eliteCount: 8,
-        mutationRate: 0.25,
-        objective: "avg",
-        seed: 123,
-      },
-    });
+  function handleRunAdvanced() {
+    const params = {
+      populationSize: 50,
+      generations: 80,
+      eliteCount: 10,
+      mutationRate: 0.3,
+      objective: "avg",
+      seed: 123,
+    };
 
-    setSuggestion(result);
+    const simOptions = {
+      config: baseConfig,
+      weights: {
+        wShort: 1.0,
+        wFinishOrder: 1.3,
+        wCritical: 0.9,
+      },
+    };
+
+    const { bestSim, info } = runAdvancedGA(orders, params, simOptions);
+
+    setAdvRes(bestSim);
+    setAdvInfo(info);
   }
 
   function handleClear() {
@@ -105,229 +160,267 @@ export default function KitchenPanel() {
     resetResults();
   }
 
-  const improvement =
-    fifo && ai
-      ? {
-          avg:
-            ((fifo.avgCompletion - ai.avgCompletion) / fifo.avgCompletion) *
-            100,
-          makespan: ((fifo.makespan - ai.makespan) / fifo.makespan) * 100,
-        }
-      : null;
+  const hasOrders = orders.length > 0;
+
+  function calcImprovement(base, other) {
+    if (!base || !other) return null;
+    return {
+      avg:
+        ((base.metrics.avgCompletion - other.metrics.avgCompletion) /
+          base.metrics.avgCompletion) *
+        100,
+      makespan:
+        ((base.metrics.makespan - other.metrics.makespan) /
+          base.metrics.makespan) *
+        100,
+    };
+  }
+
+  const gaImprovement = calcImprovement(fifoRes, gaRes);
+  const advImprovement = calcImprovement(fifoRes, advRes);
 
   return (
-    <div className="p-4 border-l border-black/10 h-full flex flex-col">
-      {/* Header */}
-      <div className="mb-3">
-        <div className="font-bold text-lg">Kitchen</div>
-        <div className="text-sm text-black/60">Orders: {orders.length}</div>
-        <div className="text-xs text-black/50 mt-1">
-          Base config: cooks {baseConfig.cooks}, grills {baseConfig.grills},
-          fryers {baseConfig.fryers}, packs {baseConfig.packs}
-        </div>
+    <div className="p-6 h-full w-full overflow-auto">
+      <div className="font-bold text-xl mb-2">Kitchen</div>
+
+      <div className="text-sm text-black/60 mb-2">Orders: {orders.length}</div>
+      <div className="text-xs text-black/50 mb-4">
+        Base config: cooks {baseConfig.cooks}, grills {baseConfig.grills},
+        fryers {baseConfig.fryers}, drinks {baseConfig.drinks}, icecreams{" "}
+        {baseConfig.icecreams}, packs {baseConfig.packs}
       </div>
 
-      {/* Controls */}
-      <div className="space-y-2 mb-3">
-        {/* Row 1 */}
-        <div className="flex gap-2 flex-wrap">
-          <button
-            className="px-3 py-2 rounded-lg bg-black text-white"
-            onClick={handleGenerate}
-          >
-            Generate 10 random
-          </button>
+      <div className="flex gap-2 flex-wrap mb-6">
+        <button
+          className="px-4 py-2 rounded-lg bg-black text-white"
+          onClick={handleGenerate}
+        >
+          Generate 10 random
+        </button>
 
-          <button
-            className="px-3 py-2 rounded-lg bg-black/10 disabled:opacity-50"
-            disabled={!hasOrders}
-            onClick={handleRunFifo}
-          >
-            Run FIFO
-          </button>
+        <button
+          className="px-4 py-2 rounded-lg bg-black/10 disabled:opacity-50"
+          disabled={!hasOrders}
+          onClick={handleRunFifo}
+        >
+          Run FIFO
+        </button>
 
-          <button
-            className="px-3 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50"
-            disabled={!hasOrders}
-            onClick={handleRunAI}
-          >
-            Run AI (GA)
-          </button>
+        <button
+          className="px-4 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50"
+          disabled={!hasOrders}
+          onClick={handleRunGA}
+        >
+          Run AI (GA)
+        </button>
 
-          <button
-            className="px-3 py-2 rounded-lg bg-black/10"
-            onClick={handleClear}
-          >
-            Clear
-          </button>
-        </div>
+        <button
+          className="px-4 py-2 rounded-lg bg-indigo-600 text-white disabled:opacity-50"
+          disabled={!hasOrders}
+          onClick={handleRunAdvanced}
+        >
+          Run Advanced AI (Dispatch)
+        </button>
 
-        {/* Row 2 */}
-        <div className="flex gap-2 items-center flex-wrap">
-          <span className="text-sm text-black/60">Target improvement %</span>
-
-          <input
-            type="number"
-            min="1"
-            max="80"
-            value={targetPct}
-            onChange={(e) => setTargetPct(e.target.value)}
-            className="w-24 px-2 py-2 rounded-lg border border-black/20 text-sm"
-          />
-
-          <button
-            className="px-3 py-2 rounded-lg bg-indigo-600 text-white disabled:opacity-50"
-            disabled={!hasOrders}
-            onClick={handleSuggest}
-          >
-            Suggest resources
-          </button>
-
-          <span className="text-xs text-black/50">
-            (Find cheapest config reaching target)
-          </span>
-        </div>
+        <button
+          className="px-4 py-2 rounded-lg bg-black/10"
+          onClick={handleClear}
+        >
+          Clear
+        </button>
       </div>
 
-      {/* Results (scrollable area) */}
-      <div className="flex-1 overflow-y-auto no-scrollbar pr-1 space-y-2">
-        {/* FIFO */}
-        {fifo && (
-          <div className="p-3 rounded-xl bg-black/5">
-            <div className="font-bold">FIFO metrics</div>
-            <div>Avg completion: {fifo.avgCompletion.toFixed(1)} s</div>
-            <div>Makespan: {fifo.makespan.toFixed(1)} s</div>
-          </div>
-        )}
-
-        {/* GA */}
-        {ai && (
-          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-            <div className="font-bold">AI metrics (Genetic Algorithm)</div>
-            <div>Avg completion: {ai.avgCompletion.toFixed(1)} s</div>
-            <div>Makespan: {ai.makespan.toFixed(1)} s</div>
-
-            {improvement && (
-              <div className="mt-2 text-sm">
-                <div>
-                  Avg improvement: <b>{improvement.avg.toFixed(1)}%</b>
-                </div>
-                <div>
-                  Makespan improvement:{" "}
-                  <b>{improvement.makespan.toFixed(1)}%</b>
-                </div>
+      {/* METRICS */}
+      {(fifoRes || gaRes || advRes) && (
+        <div className="grid gap-2 mb-8">
+          {fifoRes && (
+            <div className="p-4 rounded-xl bg-black/5">
+              <div className="font-bold">FIFO metrics</div>
+              <div>
+                Avg completion: {fifoRes.metrics.avgCompletion.toFixed(1)} s
               </div>
-            )}
-
-            {aiInfo && (
-              <div className="mt-2 text-xs text-black/60">
-                GA params: pop={aiInfo.populationSize}, gen={aiInfo.generations}
-                , elite={aiInfo.eliteCount}, mut={aiInfo.mutationRate}, seed=
-                {aiInfo.seed}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Suggestion */}
-        {suggestion && (
-          <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200">
-            <div className="font-bold">
-              AI Recommendation (Capacity Planning)
+              <div>Makespan: {fifoRes.metrics.makespan.toFixed(1)} s</div>
             </div>
+          )}
 
-            <div className="text-sm text-black/70 mt-1">
-              Tried configs: {suggestion.tried}. {suggestion.note}
+          {gaRes && (
+            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+              <div className="font-bold">AI metrics (Genetic Algorithm)</div>
+              <div>
+                Avg completion: {gaRes.metrics.avgCompletion.toFixed(1)} s
+              </div>
+              <div>Makespan: {gaRes.metrics.makespan.toFixed(1)} s</div>
+
+              {gaImprovement && (
+                <div className="mt-2 text-sm">
+                  <div>
+                    Avg improvement: <b>{gaImprovement.avg.toFixed(1)}%</b>
+                  </div>
+                  <div>
+                    Makespan improvement:{" "}
+                    <b>{gaImprovement.makespan.toFixed(1)}%</b>
+                  </div>
+                </div>
+              )}
+
+              {gaInfo && (
+                <div className="mt-2 text-xs text-black/60">
+                  GA params: pop={gaInfo.populationSize}, gen=
+                  {gaInfo.generations}, elite={gaInfo.eliteCount}, mut=
+                  {gaInfo.mutationRate}, seed={gaInfo.seed}
+                </div>
+              )}
             </div>
+          )}
 
-            {suggestion.baseline && (
-              <div className="mt-2 text-sm">
-                <div>
-                  Baseline FIFO avg:{" "}
-                  <b>
-                    {suggestion.baseline.fifoMetrics.avgCompletion.toFixed(1)} s
-                  </b>
-                </div>
-                <div>
-                  Target avg (−{Number(targetPct)}%):{" "}
-                  <b>
-                    {(
-                      suggestion.baseline.fifoMetrics.avgCompletion *
-                      (1 - Number(targetPct) / 100)
-                    ).toFixed(1)}{" "}
-                    s
-                  </b>
-                </div>
+          {advRes && (
+            <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200">
+              <div className="font-bold">
+                Advanced AI metrics (GA + Dispatch)
               </div>
-            )}
-
-            {suggestion.best ? (
-              <div className="mt-3 text-sm">
-                <div className="font-semibold">Suggested config</div>
-
-                <div className="grid grid-cols-2 gap-x-6 gap-y-1 mt-1">
-                  <div>
-                    cooks: <b>{suggestion.best.config.cooks}</b>
-                  </div>
-                  <div>
-                    packs: <b>{suggestion.best.config.packs}</b>
-                  </div>
-                  <div>
-                    grills: <b>{suggestion.best.config.grills}</b>
-                  </div>
-                  <div>
-                    fryers: <b>{suggestion.best.config.fryers}</b>
-                  </div>
-                  <div>
-                    drinks: <b>{suggestion.best.config.drinks}</b>
-                  </div>
-                  <div>
-                    icecreams: <b>{suggestion.best.config.icecreams}</b>
-                  </div>
-                </div>
-
-                <div className="mt-2">
-                  Predicted AI avg:{" "}
-                  <b>{suggestion.best.aiMetrics.avgCompletion.toFixed(1)} s</b>{" "}
-                  ({suggestion.best.improvementPct.toFixed(1)}% improvement)
-                </div>
-
-                <div>
-                  Predicted makespan:{" "}
-                  <b>{suggestion.best.aiMetrics.makespan.toFixed(1)} s</b>
-                </div>
-
-                <div className="text-xs text-black/60 mt-1">
-                  Estimated cost score: {suggestion.best.cost}
-                </div>
+              <div>
+                Avg completion: {advRes.metrics.avgCompletion.toFixed(1)} s
               </div>
-            ) : (
-              <div className="mt-3 text-sm text-black/70">
-                No config reached target in current ranges. Increase cooks/packs
-                ranges or lower target.
-              </div>
-            )}
-          </div>
-        )}
+              <div>Makespan: {advRes.metrics.makespan.toFixed(1)} s</div>
 
-        {/* Orders list */}
-        <div className="pt-2">
-          <div className="font-bold text-sm mb-2">Orders</div>
-          <div className="space-y-2">
+              {advImprovement && (
+                <div className="mt-2 text-sm">
+                  <div>
+                    Avg improvement: <b>{advImprovement.avg.toFixed(1)}%</b>
+                  </div>
+                  <div>
+                    Makespan improvement:{" "}
+                    <b>{advImprovement.makespan.toFixed(1)}%</b>
+                  </div>
+                </div>
+              )}
+
+              {advInfo && (
+                <div className="mt-2 text-xs text-black/60">
+                  Advanced params: pop={advInfo.populationSize}, gen=
+                  {advInfo.generations}, elite={advInfo.eliteCount}, mut=
+                  {advInfo.mutationRate}, seed={advInfo.seed}
+                </div>
+              )}
+              {advInfo?.bestWeights && (
+                <div className="mt-2 text-xs text-black/60">
+                  Best weights:{" "}
+                  {Object.entries(advInfo.bestWeights)
+                    .map(([k, v]) => `${k}=${v.toFixed(2)}`)
+                    .join(", ")}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TIMELINES */}
+      {(fifoRes || gaRes || advRes) && (
+        <div className="space-y-10">
+          {fifoRes && (
+            <KitchenTimeline
+              title="FIFO timeline"
+              timeline={fifoRes.timeline}
+              makespan={fifoRes.metrics.makespan}
+              height={300}
+            />
+          )}
+
+          {gaRes && (
+            <KitchenTimeline
+              title="GA timeline (order sequencing)"
+              timeline={gaRes.timeline}
+              makespan={gaRes.metrics.makespan}
+              height={300}
+            />
+          )}
+
+          {advRes && (
+            <KitchenTimeline
+              title="Advanced timeline (dispatch)"
+              timeline={advRes.timeline}
+              makespan={advRes.metrics.makespan}
+              height={300}
+            />
+          )}
+        </div>
+      )}
+
+      {/* Orders list */}
+      <div className="mt-10">
+        <div className="font-bold mb-2">Orders</div>
+
+        {orders.length === 0 ? (
+          <div className="text-sm text-black/60">No orders yet.</div>
+        ) : (
+          <div className="space-y-3">
             {orders.map((o) => (
-              <div
-                key={o.orderId}
-                className="p-2 rounded-lg bg-black/5 text-sm"
-              >
-                <div className="font-semibold">{o.orderId}</div>
-                <div className="text-black/60">Items: {o.items.length}</div>
+              <div key={o.orderId} className="p-3 rounded-xl bg-black/5">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">{o.orderId}</div>
+                  <div className="text-xs text-black/60">
+                    Items: {o.items?.length ?? 0}
+                  </div>
+                </div>
+
+                {/* items details */}
+                {!o.items || o.items.length === 0 ? (
+                  <div className="text-sm text-black/60 mt-2">
+                    No items in this order.
+                  </div>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {o.items.map((it, idx) => {
+                      const label = getItemLabel(it);
+                      const qty = getItemQty(it);
+                      const stations = getMaybeStations(it);
+                      const durs = getMaybeDurations(it);
+
+                      return (
+                        <div
+                          key={`${o.orderId}-${idx}`}
+                          className="p-2 rounded-lg bg-white border border-black/10"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm font-medium truncate">
+                              {label}
+                            </div>
+                            <div className="text-sm text-black/70">× {qty}</div>
+                          </div>
+
+                          {(stations.length > 0 || durs.length > 0) && (
+                            <div className="mt-1 text-xs text-black/60 flex flex-wrap gap-x-3 gap-y-1">
+                              {stations.length > 0 && (
+                                <span>
+                                  Stations:{" "}
+                                  <b>
+                                    {Array.from(new Set(stations)).join(", ")}
+                                  </b>
+                                </span>
+                              )}
+                              {durs.length > 0 && (
+                                <span>
+                                  Durations:{" "}
+                                  <b>{durs.map((s) => `${s}s`).join(", ")}</b>
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* raw dump fallback (optional) */}
+                          {/* <pre className="mt-2 text-[10px] text-black/50 overflow-auto">
+                            {JSON.stringify(it, null, 2)}
+                          </pre> */}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             ))}
-            {orders.length === 0 && (
-              <div className="text-sm text-black/60">No orders yet.</div>
-            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

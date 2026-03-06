@@ -76,10 +76,22 @@ export function simulate(ordersSequence, options = {}) {
     humanTime,
     prevEnd,
   }) {
-    // 1) parenkam žmogų (greičiausiai laisvą)
+    // pasirink stotelę, kuri greičiausiai atsilaisvins
+    const stIdx = pickEarliestIndex(stationFreeArr);
+
+    // žmogus ir stotelė turi sutapti laike
     const cookIdx = pickEarliestIndex(cookFree);
-    const serviceStart = Math.max(cookFree[cookIdx], prevEnd);
+
+    // kada realiai galim pradėti "įdėti" produktą (service)
+    const serviceStart = Math.max(
+      prevEnd,
+      stationFreeArr[stIdx], // stotelė turi būti laisva
+      cookFree[cookIdx], // žmogus turi būti laisvas
+    );
+
     const serviceEnd = serviceStart + humanTime;
+
+    // atnaujinam žmogų
     cookFree[cookIdx] = serviceEnd;
 
     timeline.push({
@@ -90,10 +102,11 @@ export function simulate(ordersSequence, options = {}) {
       end: serviceEnd,
     });
 
-    // 2) parenkam stotelę (greičiausiai laisvą)
-    const stIdx = pickEarliestIndex(stationFreeArr);
-    const machineStart = Math.max(stationFreeArr[stIdx], serviceEnd);
+    // mašina pradeda dirbti iškart po service (įdėjimo)
+    const machineStart = serviceEnd;
     const machineEnd = machineStart + machineTime;
+
+    // atnaujinam stotelę
     stationFreeArr[stIdx] = machineEnd;
 
     timeline.push({
