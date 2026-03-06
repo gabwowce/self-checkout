@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useKitchenContext } from "../context/kitchenContext";
+import { useKitchenContext } from "../context/KitchenContext";
 import { generateRandomOrders } from "../kitchen/randomOrders";
 import { simulate } from "../kitchen/simulate";
 

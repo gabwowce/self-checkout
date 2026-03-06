@@ -1,4 +1,4 @@
-import { useKitchenContext } from "../../context/kitchenContext"; // 👈 pridėk
+import { useKitchenContext } from "../../context/KitchenContext";
 import { useVirtualReceiptContext } from "../../context/virtualReceiptContext";
 import { formatEur } from "../../helpers/priceConverter";
 
@@ -8,17 +8,17 @@ export default function VirtualReceipt() {
     addToVirtualReceipt,
     decrementFromVirtualReceipt,
     removeFromVirtualReceipt,
-    clearReceipt, // 👈 jei turi, gerai. jei neturi – išmesk šitą
+    clearReceipt,
   } = useVirtualReceiptContext();
 
-  const { addOrderFromReceipt } = useKitchenContext(); // 👈
+  const { addOrderFromReceipt } = useKitchenContext();
 
   const total = receiptItems.reduce((sum, x) => sum + x.priceCents * x.qty, 0);
 
   function handleSendToKitchen() {
     if (receiptItems.length === 0) return;
-    addOrderFromReceipt(receiptItems); // 👈 sukuria orderį ir įdeda į queue
-    clearReceipt?.(); // 👈 optional
+    addOrderFromReceipt(receiptItems);
+    clearReceipt?.();
   }
 
   return (

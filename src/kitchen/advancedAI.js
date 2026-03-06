@@ -47,7 +47,7 @@ export function runAdvancedGA(orders, gaOptions = {}, simOptions = {}) {
     wDur: [0.0, 2.0],
     wPack: [-2.0, 2.0],
     wAuto: [-2.0, 2.0],
-    wFinish: [-3.0, 0.0], // negative: finish orders earlier
+    wFinish: [-3.0, 0.0],
     wCritical: [-2.0, 2.0],
   };
 
@@ -80,7 +80,6 @@ export function runAdvancedGA(orders, gaOptions = {}, simOptions = {}) {
   function crossoverWeights(a, b) {
     const child = {};
     for (const k of WEIGHT_KEYS) {
-      // blend
       const alpha = rng(); // 0..1
       child[k] = clampWeight(k, a[k] * alpha + b[k] * (1 - alpha));
     }
